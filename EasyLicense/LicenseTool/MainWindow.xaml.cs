@@ -7,110 +7,108 @@ using EasyLicense.Lib;
 using EasyLicense.Lib.License;
 using EasyLicense.Lib.License.Validator;
 
-namespace EasyLicense.LicenseTool
-{
-	/// <summary>
-	///     Interaction logic for MainWindow.xaml
-	/// </summary>
-	public partial class MainWindow : Window
-	{
-		public MainWindow()
-		{
-			InitializeComponent();
+namespace EasyLicense.LicenseTool {
+    /// <summary>
+    ///     Interaction logic for MainWindow.xaml
+    /// </summary>
+    public partial class MainWindow : Window {
+        public MainWindow() {
+            InitializeComponent();
+            this.txtName.Text = "CoordTransform";
+            this.limitTimePicker.SelectedDate = DateTime.UtcNow.AddDays(10);
+            txtComputerKey.Text = new HardwareInfo().GetHardwareString();
+        }
 
-			txtComputerKey.Text = new HardwareInfo().GetHardwareString();
-		}
+        private void btnGenerateLicense_Click(object sender, RoutedEventArgs e) {
+            if (string.IsNullOrWhiteSpace(txtName.Text) || string.IsNullOrWhiteSpace(txtComputerKey.Text)) {
+                MessageBox.Show("Some field is missing");
+                return;
+            }
+            if (limitTimePicker.SelectedDate is null) {
+                MessageBox.Show("limit time cant be none");
+                return;
+            }
 
-		private void btnGenerateLicense_Click(object sender, RoutedEventArgs e)
-		{
-			GenerateLicense();
+            string softName = this.txtName.Text;
+            string computerKey = this.txtComputerKey.Text;
+            DateTime limitTime = this.limitTimePicker.DisplayDate;
 
-			ValidateLicense();
-		}
 
-		private void GenerateLicense()
-		{
-			if (!File.Exists("privateKey.xml"))
-			{
-				MessageBox.Show("Please create a license key first");
-				return;
-			}
+            GenerateLicense(softName, computerKey, limitTime);
 
-			if (string.IsNullOrWhiteSpace(txtName.Text) || string.IsNullOrWhiteSpace(txtComputerKey.Text))
-			{
-				MessageBox.Show("Some field is missing");
-				return;
-			}
+            ValidateLicense();
+        }
 
-			var privateKey = File.ReadAllText(@"privateKey.xml");
-			var generator = new LicenseGenerator(privateKey);
+        private void GenerateLicense(string softName, string computerKey, DateTime limitTime) {
 
-			var dict = new Dictionary<string, string>();
 
-			dict["name"] = txtName.Text;
-			dict["key"] = txtComputerKey.Text;
+            if (!File.Exists("privateKey.xml")) {
+                MessageBox.Show("Please create a license key first");
+                return;
+            }
 
-			// generate the license
-			var license = generator.Generate("EasyLicense", Guid.NewGuid(), DateTime.UtcNow.AddYears(1), dict,
-				LicenseType.Standard);
-			
-			txtLicense.Text = license;
-			File.WriteAllText("license.lic", license);
 
-			File.AppendAllText("license.log", $"License to {dict["name"]}, key is {dict["key"]}, Date is {DateTime.Now}");
-		}
 
-		private void ValidateLicense()
-		{
-			if (!File.Exists("publicKey.xml"))
-			{
-				MessageBox.Show("Please create a license key first");
-				return;
-			}
-			
-			var publicKey = File.ReadAllText(@"publicKey.xml");
+            var privateKey = File.ReadAllText(@"privateKey.xml");
+            var generator = new LicenseGenerator(privateKey);
 
-			var validator = new LicenseValidator(publicKey, @"license.lic");
+            var dict = new Dictionary<string, string>();
 
-			try
-			{
-				validator.AssertValidLicense();
+            dict["name"] = softName;
+            dict["key"] = computerKey;
 
-				var dict = validator.LicenseAttributes;
-				MessageBox.Show($"License to {dict["name"]}, key is {dict["key"]}");
+            // generate the license
+            var license = generator.Generate("EasyLicense", Guid.NewGuid(), limitTime, dict,
+                LicenseType.Standard);
 
-				if (dict["key"] != txtComputerKey.Text)
-				{
-					MessageBox.Show("invalid!");
-				}
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine(ex.Message);
-			}
-		}
+            txtLicense.Text = license;
+            File.WriteAllText("license.lic", license);
 
-		private void btnGenerateLicenseKey_Click(object sender, RoutedEventArgs e)
-		{
-			// var assembly = AppDomain.CurrentDomain.BaseDirectory;
+            File.AppendAllText("license.log", $"License to {dict["name"]}, key is {dict["key"]}, Date is {DateTime.Now}");
+        }
 
-			if (File.Exists("privateKey.xml") || File.Exists("publicKey.xml"))
-			{
-				var result = MessageBox.Show("The key is existed, override it?", "Warning", MessageBoxButton.YesNo);
-				if (result == MessageBoxResult.No)
-				{
-					return;
-				}
-			}
+        private void ValidateLicense() {
+            if (!File.Exists("publicKey.xml")) {
+                MessageBox.Show("Please create a license key first");
+                return;
+            }
 
-			var privateKey = "";
-			var publicKey = "";
-			LicenseGenerator.GenerateLicenseKey(out privateKey, out publicKey);
+            var publicKey = File.ReadAllText(@"publicKey.xml");
 
-			File.WriteAllText("privateKey.xml", privateKey);
-			File.WriteAllText("publicKey.xml", publicKey);
+            var validator = new LicenseValidator(publicKey, @"license.lic");
 
-			MessageBox.Show("The Key is created, please backup it.");
-		}
-	}
+            try {
+                validator.AssertValidLicense();
+
+                var dict = validator.LicenseAttributes;
+                MessageBox.Show($"License to {dict["name"]}, key is {dict["key"]}");
+
+                if (dict["key"] != txtComputerKey.Text) {
+                    MessageBox.Show("invalid!");
+                }
+            } catch (Exception ex) {
+                Console.WriteLine(ex.Message);
+            }
+        }
+
+        private void btnGenerateLicenseKey_Click(object sender, RoutedEventArgs e) {
+            // var assembly = AppDomain.CurrentDomain.BaseDirectory;
+
+            if (File.Exists("privateKey.xml") || File.Exists("publicKey.xml")) {
+                var result = MessageBox.Show("The key is existed, override it?", "Warning", MessageBoxButton.YesNo);
+                if (result == MessageBoxResult.No) {
+                    return;
+                }
+            }
+
+            var privateKey = "";
+            var publicKey = "";
+            LicenseGenerator.GenerateLicenseKey(out privateKey, out publicKey);
+
+            File.WriteAllText("privateKey.xml", privateKey);
+            File.WriteAllText("publicKey.xml", publicKey);
+
+            MessageBox.Show("The Key is created, please backup it.");
+        }
+    }
 }
